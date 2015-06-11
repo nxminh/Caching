@@ -23,11 +23,13 @@ namespace Microsoft.Framework.Caching.SqlServer
         private readonly SqlServerCacheOptions _options;
         private readonly ILogger _logger;
         private DateTimeOffset _lastExpirationScan;
+        private readonly ISystemClock _systemClock;
 
         //TODO: ADD LOGGING
         public SqlServerCache(IOptions<SqlServerCacheOptions> options, ILoggerFactory loggerFactory)
         {
             _options = options.Options;
+            _systemClock = _options.SystemClock;
             _logger = loggerFactory.CreateLogger<SqlServerCache>();
         }
 
@@ -47,7 +49,7 @@ namespace Microsoft.Framework.Caching.SqlServer
         public byte[] Get([NotNull] string key)
         {
             byte[] sessionvalue = null;
-            var utcNow = DateTimeOffset.UtcNow;
+            var utcNow = _systemClock.UtcNow;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
@@ -79,7 +81,7 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                     command = new SqlCommand(SqlQueries.UpdateSessionExpiration, connection);
                     command.Parameters.AddWithValue(SessionId, key);
-                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, GetNewExpirationTime(oldExpirationTimeUTC));
+                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, GetNewExpirationTime(utcNow));
 
                     var recordsAffected = command.ExecuteNonQuery();
                 }
@@ -93,7 +95,7 @@ namespace Microsoft.Framework.Caching.SqlServer
         public async Task<byte[]> GetAsync([NotNull] string key)
         {
             byte[] sessionvalue = null;
-            var utcNow = DateTimeOffset.UtcNow;
+            var utcNow = _systemClock.UtcNow;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
@@ -125,7 +127,7 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                     command = new SqlCommand(SqlQueries.UpdateSessionExpiration, connection);
                     command.Parameters.AddWithValue(SessionId, key);
-                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, GetNewExpirationTime(oldExpirationTimeUTC));
+                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, GetNewExpirationTime(utcNow));
 
                     var recordsAffected = await command.ExecuteNonQueryAsync();
                 }
@@ -178,14 +180,14 @@ namespace Microsoft.Framework.Caching.SqlServer
 
         public void Set([NotNull] string key, [NotNull] byte[] value, DistributedCacheEntryOptions options)
         {
-            var utcNow = DateTimeOffset.UtcNow;
+            var utcNow = _systemClock.UtcNow;
             bool sessionAlreadyExists = false;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(SqlQueries.GetSession, connection);
                 command.Parameters.AddWithValue(SessionId, key);
-                command.Parameters.AddWithValue(ExpiresAtTimeUTC, utcNow);
+                command.Parameters.AddWithValue("UtcNow", utcNow);
 
                 connection.Open();
 
@@ -224,14 +226,14 @@ namespace Microsoft.Framework.Caching.SqlServer
 
         public async Task SetAsync([NotNull] string key, [NotNull] byte[] value, DistributedCacheEntryOptions options)
         {
-            var utcNow = DateTimeOffset.UtcNow;
+            var utcNow = _systemClock.UtcNow;
             bool sessionAlreadyExists = false;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(SqlQueries.GetSession, connection);
                 command.Parameters.AddWithValue(SessionId, key);
-                command.Parameters.AddWithValue(ExpiresAtTimeUTC, utcNow);
+                command.Parameters.AddWithValue("UtcNow", utcNow);
 
                 await connection.OpenAsync();
 
@@ -272,7 +274,7 @@ namespace Microsoft.Framework.Caching.SqlServer
         // If sufficient time has elapsed then a scan is initiated on a background task.
         private void StartScanForExpiredSessions()
         {
-            var utcNow = DateTimeOffset.UtcNow;
+            var utcNow = _systemClock.UtcNow;
             if ((utcNow - _lastExpirationScan) > _options.ExpirationScanFrequency)
             {
                 _lastExpirationScan = utcNow;
@@ -280,7 +282,8 @@ namespace Microsoft.Framework.Caching.SqlServer
             }
         }
 
-        private void DeleteExpiredSessions(object state)
+        // to enable unit testing
+        internal void DeleteExpiredSessions(object state)
         {
             var utcNow = (DateTimeOffset)state;
             var connection = new SqlConnection(_options.ConnectionString);
@@ -304,9 +307,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             }
         }
 
-        private DateTimeOffset GetNewExpirationTime(DateTimeOffset datetime)
+        private DateTimeOffset GetNewExpirationTime(DateTimeOffset utcNow)
         {
-            return datetime.AddSeconds(3 * _options.IdleTimeout.TotalSeconds);
+            return utcNow.AddSeconds(3 * _options.IdleTimeout.TotalSeconds);
         }
     }
 }
