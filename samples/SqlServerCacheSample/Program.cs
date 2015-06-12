@@ -11,8 +11,10 @@ using Microsoft.Framework.Logging;
 namespace SqlServerCacheSample
 {
     /// <summary>
-    /// This sample requires setting up a Microsoft SQL Server based Session database.
-    /// Run the command "dnx . install-sessiondb <connectionstring-here>" to setup the database.
+    /// This sample requires setting up a Microsoft SQL Server based cache database.
+    /// 1. Create a new database or use as existing gone.
+    /// 2. Run the command "dnx . install-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
+    ///    to setup the table.
     /// </summary>
     public class Program
     {
@@ -29,13 +31,17 @@ namespace SqlServerCacheSample
             var cache = new SqlServerCache(
                 new SqlServerCacheOptions()
                 {
-                    ConnectionString = "Server=localhost;Database=ASPNET5SessionState;Trusted_Connection=True;"
+                    ConnectionString = "Server=localhost;Database=ASPNET5CacheTest;Trusted_Connection=True;",
+                    TableName = "ASPNET5Cache"
                 },
                 loggerFactory);
             Console.WriteLine("Connected");
 
             Console.WriteLine($"Setting value '{message}' in cache");
-            await cache.SetAsync(key, value, new DistributedCacheEntryOptions());
+            await cache.SetAsync(
+                key,
+                value,
+                new DistributedCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(10)));
             Console.WriteLine("Set");
 
             Console.WriteLine("Getting value from cache");

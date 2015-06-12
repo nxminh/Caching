@@ -11,11 +11,11 @@ namespace Microsoft.Framework.Caching.SqlServer
     {
         public ISystemClock SystemClock { get; set; } = new SystemClock();
 
-        public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(20);
-
         public TimeSpan ExpirationScanFrequency { get; set; } = TimeSpan.FromMinutes(10);
 
         public string ConnectionString { get; set; }
+
+        public string TableName { get; set; }
 
         public SqlServerCacheOptions Options
         {

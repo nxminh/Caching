@@ -5,12 +5,14 @@ using System;
 
 namespace Microsoft.Framework.Caching.SqlServer
 {
-    public class SessionInfo
+    public class CacheItemInfo
     {
         public string Id { get; set; }
 
         public byte[] Value { get; set; }
 
         public DateTimeOffset ExpiresAtTimeUTC { get; set; }
+
+        public long? SlidingExpirationInTicks { get; set; }
     }
 }

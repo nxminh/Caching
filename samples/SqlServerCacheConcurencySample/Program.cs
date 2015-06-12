@@ -9,11 +9,13 @@ using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Caching.SqlServer;
 using Microsoft.Framework.Logging;
 
-namespace MemoryCacheSample
+namespace SqlServerCacheConcurencySample
 {
     /// <summary>
-    /// This sample requires setting up a Microsoft SQL Server based Session database.
-    /// Run the command "dnx . install-sessiondb <connectionstring-here>" to setup the database.
+    /// This sample requires setting up a Microsoft SQL Server based cache database.
+    /// 1. Create a new database or use as existing gone.
+    /// 2. Run the command "dnx . install-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
+    ///    to setup the table.
     /// </summary>
     public class Program
     {
@@ -24,13 +26,14 @@ namespace MemoryCacheSample
         public void Main()
         {
             _cacheEntryOptions = new DistributedCacheEntryOptions();
+            _cacheEntryOptions.SetSlidingExpiration(TimeSpan.FromSeconds(10));
 
             var loggerFactory = new LoggerFactory();
             loggerFactory.AddConsole();
             var cache = new SqlServerCache(new SqlServerCacheOptions()
             {
-                ConnectionString = "Server=localhost;Database=ASPNET5SessionState;Trusted_Connection=True;",
-                IdleTimeout = TimeSpan.FromSeconds(10),
+                ConnectionString = "Server=localhost;Database=ASPNET5CacheTest;Trusted_Connection=True;",
+                TableName = "ASPNET5Cache",
                 ExpirationScanFrequency = TimeSpan.FromSeconds(30)
             }, loggerFactory);
 
@@ -50,11 +53,6 @@ namespace MemoryCacheSample
         {
             Console.WriteLine("Setting: " + value);
             cache.Set(Key, Encoding.UTF8.GetBytes(value), _cacheEntryOptions);
-        }
-
-        private void AfterEvicted(string key, object value, EvictionReason reason, object state)
-        {
-            Console.WriteLine("Evicted. Value: " + value + ", Reason: " + reason);
         }
 
         private void PeriodciallySetKey(IDistributedCache cache, TimeSpan interval)

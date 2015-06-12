@@ -1,6 +1,6 @@
 {
     "commands": {
-        "install-sessiondb": "Microsoft.Framework.Caching.SqlServer"
+        "install-sqlservercache": "Microsoft.Framework.Caching.SqlServer"
     },
     "dependencies": {
         "Microsoft.Framework.Caching.Abstractions": "1.0.0-*",

@@ -3,22 +3,64 @@
 
 namespace Microsoft.Framework.Caching.SqlServer
 {
-    internal static class SqlQueries
+    internal class SqlQueries
     {
-        public const string GetSession = "SELECT Id, Value, ExpiresAtTimeUTC " +
-            "FROM Sessions WHERE Id = @Id AND ExpiresAtTimeUTC >= @UtcNow";
+        private const string CreateTableFormat = "CREATE TABLE [{0}](" +
+            "Id nvarchar(100)  NOT NULL PRIMARY KEY, " +
+            "Value varbinary(MAX) NOT NULL, " +
+            "ExpiresAtTimeUTC datetimeoffset NOT NULL, " +
+            "SlidingExpirationInTicks bigint NULL)";
 
-        public const string AddSession = "INSERT INTO Sessions (Id, Value, ExpiresAtTimeUTC) " +
-            "VALUES (@Id, @Value, @ExpiresAtTimeUTC)";
+        private const string CreateNonClusteredIndexOnExpirationTimeFormat
+            = "CREATE NONCLUSTERED INDEX Index_ExpiresAtTimeUTC ON [{0}](ExpiresAtTimeUTC)";
 
-        public const string UpdateSession = "UPDATE Sessions SET Value = @Value, " +
+        private const string GetCacheItemFormat = "SELECT Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks " +
+            "FROM [{0}] WHERE Id = @Id AND @UtcNow <= ExpiresAtTimeUTC";
+
+        private const string AddCacheItemFormat = "INSERT INTO [{0}] " +
+            "(Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks) " +
+            "VALUES (@Id, @Value, @ExpiresAtTimeUTC, @SlidingExpirationInTicks)";
+
+        private const string UpdateCacheItemFormat = "UPDATE [{0}] SET Value = @Value, " +
             "ExpiresAtTimeUTC = @ExpiresAtTimeUTC  WHERE Id = @Id";
 
-        public const string DeleteSession = "DELETE FROM Sessions WHERE Id = @Id";
+        private const string DeleteCacheItemFormat = "DELETE FROM [{0}] WHERE Id = @Id";
 
-        public const string UpdateSessionExpiration = "UPDATE Sessions SET ExpiresAtTimeUTC = @ExpiresAtTimeUTC " +
+        private const string UpdateCacheItemExpirationFormat = "UPDATE [{0}] SET ExpiresAtTimeUTC = @ExpiresAtTimeUTC " +
             "WHERE Id = @Id";
 
-        public const string DeleteExpiredSessions = "DELETE FROM Sessions WHERE ExpiresAtTimeUTC < @UtcNow";
+        public const string DeleteExpiredCacheItemsFormat = "DELETE FROM [{0}] WHERE @UtcNow > ExpiresAtTimeUTC";
+
+        public SqlQueries(string tableName)
+        {
+            //TODO: error checks
+
+            CreateTable = string.Format(CreateTableFormat, tableName);
+            CreateNonClusteredIndexOnExpirationTime = string.Format(
+                CreateNonClusteredIndexOnExpirationTimeFormat,
+                tableName);
+            GetCacheItem = string.Format(GetCacheItemFormat, tableName);
+            AddCacheItem = string.Format(AddCacheItemFormat, tableName);
+            UpdateCacheItem = string.Format(UpdateCacheItemFormat, tableName);
+            DeleteCacheItem = string.Format(DeleteCacheItemFormat, tableName);
+            UpdateCacheItemExpiration = string.Format(UpdateCacheItemExpirationFormat, tableName);
+            DeleteExpiredCacheItems = string.Format(DeleteExpiredCacheItemsFormat, tableName);
+        }
+
+        public string CreateTable { get; }
+
+        public string CreateNonClusteredIndexOnExpirationTime { get; }
+
+        public string GetCacheItem { get; }
+
+        public string AddCacheItem { get; }
+
+        public string UpdateCacheItem { get; }
+
+        public string DeleteCacheItem { get; }
+
+        public string UpdateCacheItemExpiration { get; }
+
+        public string DeleteExpiredCacheItems { get; }
     }
 }
