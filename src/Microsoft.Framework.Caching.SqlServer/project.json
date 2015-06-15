@@ -1,6 +1,6 @@
 {
     "commands": {
-        "install-sqlservercache": "Microsoft.Framework.Caching.SqlServer"
+        "create-sqlservercache": "Microsoft.Framework.Caching.SqlServer"
     },
     "dependencies": {
         "Microsoft.Framework.Caching.Abstractions": "1.0.0-*",

@@ -9,17 +9,22 @@ namespace Microsoft.Framework.Caching.SqlServer
             "Id nvarchar(100)  NOT NULL PRIMARY KEY, " +
             "Value varbinary(MAX) NOT NULL, " +
             "ExpiresAtTimeUTC datetimeoffset NOT NULL, " +
-            "SlidingExpirationInTicks bigint NULL)";
+            "SlidingExpirationInTicks bigint NULL," +
+            "AbsoluteExpiration datetimeoffset NULL)";
 
         private const string CreateNonClusteredIndexOnExpirationTimeFormat
             = "CREATE NONCLUSTERED INDEX Index_ExpiresAtTimeUTC ON [{0}](ExpiresAtTimeUTC)";
 
-        private const string GetCacheItemFormat = "SELECT Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks " +
+        // Used for getting table schema when trying to 'Connect' to the database
+        private const string GetTableSchemaFormat = "SELECT * FROM [{0}]";
+
+        private const string GetCacheItemFormat =
+            "SELECT Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks, AbsoluteExpiration " +
             "FROM [{0}] WHERE Id = @Id AND @UtcNow <= ExpiresAtTimeUTC";
 
         private const string AddCacheItemFormat = "INSERT INTO [{0}] " +
-            "(Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks) " +
-            "VALUES (@Id, @Value, @ExpiresAtTimeUTC, @SlidingExpirationInTicks)";
+            "(Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks, AbsoluteExpiration) " +
+            "VALUES (@Id, @Value, @ExpiresAtTimeUTC, @SlidingExpirationInTicks, @AbsoluteExpiration)";
 
         private const string UpdateCacheItemFormat = "UPDATE [{0}] SET Value = @Value, " +
             "ExpiresAtTimeUTC = @ExpiresAtTimeUTC  WHERE Id = @Id";
@@ -39,6 +44,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             CreateNonClusteredIndexOnExpirationTime = string.Format(
                 CreateNonClusteredIndexOnExpirationTimeFormat,
                 tableName);
+            GetTableSchema = string.Format(GetTableSchemaFormat, tableName);
             GetCacheItem = string.Format(GetCacheItemFormat, tableName);
             AddCacheItem = string.Format(AddCacheItemFormat, tableName);
             UpdateCacheItem = string.Format(UpdateCacheItemFormat, tableName);
@@ -50,6 +56,8 @@ namespace Microsoft.Framework.Caching.SqlServer
         public string CreateTable { get; }
 
         public string CreateNonClusteredIndexOnExpirationTime { get; }
+
+        public string GetTableSchema { get; }
 
         public string GetCacheItem { get; }
 

@@ -14,5 +14,7 @@ namespace Microsoft.Framework.Caching.SqlServer
         public DateTimeOffset ExpiresAtTimeUTC { get; set; }
 
         public long? SlidingExpirationInTicks { get; set; }
+
+        public DateTimeOffset? AbsoluteExpiration { get; set; }
     }
 }

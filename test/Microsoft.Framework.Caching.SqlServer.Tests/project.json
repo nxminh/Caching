@@ -1,7 +1,7 @@
 {
     "commands": {
         "test": "xunit.runner.aspnet",
-        "install-sqlservercache": "Microsoft.Framework.Caching.SqlServer"
+        "create-sqlservercache": "Microsoft.Framework.Caching.SqlServer"
     },
     "dependencies": {
         "Microsoft.AspNet.Testing": "1.0.0-*",

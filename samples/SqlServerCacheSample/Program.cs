@@ -13,14 +13,14 @@ namespace SqlServerCacheSample
     /// <summary>
     /// This sample requires setting up a Microsoft SQL Server based cache database.
     /// 1. Create a new database or use as existing gone.
-    /// 2. Run the command "dnx . install-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
+    /// 2. Run the command "dnx . create-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
     ///    to setup the table.
     /// </summary>
     public class Program
     {
         public static async Task Main(string[] args)
         {
-            var key = "myKey";
+            var key = Guid.NewGuid().ToString();
             var message = "Hello, World!";
             var value = Encoding.UTF8.GetBytes(message);
 
@@ -31,12 +31,15 @@ namespace SqlServerCacheSample
             var cache = new SqlServerCache(
                 new SqlServerCacheOptions()
                 {
-                    ConnectionString = "Server=localhost;Database=ASPNET5CacheTest;Trusted_Connection=True;",
-                    TableName = "ASPNET5Cache"
+                    ConnectionString = "Server=localhost;Database=CacheSampleDb;Trusted_Connection=True;",
+                    TableName = "CacheSample"
                 },
                 loggerFactory);
+            await cache.ConnectAsync();
+
             Console.WriteLine("Connected");
 
+            Console.WriteLine("Cache item key: {0}", key);
             Console.WriteLine($"Setting value '{message}' in cache");
             await cache.SetAsync(
                 key,

@@ -13,7 +13,6 @@ namespace Microsoft.Framework.DependencyInjection
         public static IServiceCollection AddSqlServerCache([NotNull] this IServiceCollection services)
         {
             services.AddOptions();
-            //TODO: verify 'AddCaching' extension as it currently sets up this as Transient
             services.AddSingleton<IDistributedCache, SqlServerCache>();
             return services;
         }
