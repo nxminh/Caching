@@ -24,62 +24,52 @@ namespace Microsoft.Framework.Caching.SqlServer
         /// The 'SlidingExpiration' here should be interpreted as the minimum time to live for a cache item before
         /// it expires.
         /// Example:
-        /// For a sliding expiration of 30 mins, a new cache item would have its 'ExpiresAtTimeUTC' 60 mins(30 * 2)
+        /// For a sliding expiration of 30 mins, a new cache item would have its 'ExpiresAtTime' 60 mins(30 * 2)
         /// from now. All 'Get' operations before the first 30 mins do not cause any database updates to the cache
         /// item's expiration time and any 'Get' operations between the 30th and 60th minute would cause a database
         /// update where the expiration time is again extended by 60 mins.
         /// </summary>
         internal const int ExpirationTimeMultiplier = 2;
 
-        // Table column names
-        private const string CacheItemId = "Id";
-        private const string CacheItemValue = "Value";
-        private const string ExpiresAtTimeUTC = "ExpiresAtTimeUTC";
-        private const string SlidingExpirationInTicks = "SlidingExpirationInTicks";
-        private const string AbsoluteExpiration = "AbsoluteExpiration";
-        private int _cacheItemIdIndex = -1;
-        private int _cacheItemValueIndex = -1;
-        private int _expiresAtTimeUTCIndex = -1;
-        private int _slidingExpirationInTicksIndex = -1;
-        private int _absoluteExpirationIndex = -1;
+        // The value of the following index positions is dependent on how the SQL queries
+        // are selecting the columns.
+        private const int CacheItemIdIndex = 0;
+        private const int CacheItemValueIndex = 1;
+        private const int ExpiresAtTimeIndex = 2;
+        private const int SlidingExpirationInTicksIndex = 3;
+        private const int AbsoluteExpirationIndex = 4;
 
         private readonly SqlServerCacheOptions _options;
         private readonly ILogger _logger;
-        private readonly ISystemClock _systemClock;
         private readonly SqlQueries _sqlQueries;
         private DateTimeOffset _lastExpirationScan;
 
         public SqlServerCache(IOptions<SqlServerCacheOptions> options, ILoggerFactory loggerFactory)
         {
             _options = options.Options;
-            _systemClock = _options.SystemClock;
-            _sqlQueries = new SqlQueries(_options.TableName);
+            _sqlQueries = new SqlQueries(_options.SchemaName, _options.TableName);
             _logger = loggerFactory.CreateLogger<SqlServerCache>();
         }
 
         public void Connect()
         {
-            // Try connecting to the database to test if its available and also
-            // get and cache the ordinal positions of the columns for better performance.
+            // Try connecting to the database and check if its available.
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.GetTableSchema, connection);
                 connection.Open();
 
                 var reader = command.ExecuteReader(CommandBehavior.SchemaOnly);
-
-                _cacheItemIdIndex = reader.GetOrdinal(CacheItemId);
-                _cacheItemValueIndex = reader.GetOrdinal(CacheItemValue);
-                _expiresAtTimeUTCIndex = reader.GetOrdinal(ExpiresAtTimeUTC);
-                _slidingExpirationInTicksIndex = reader.GetOrdinal(SlidingExpirationInTicks);
-                _absoluteExpirationIndex = reader.GetOrdinal(AbsoluteExpiration);
+                if(reader.Read())
+                {
+                    //TODO: log info
+                }
             }
         }
 
         public async Task ConnectAsync()
         {
-            // Try connecting to the database to test if its available and also
-            // get and cache the ordinal positions of the columns for better performance.
+            // Try connecting to the database and check if its available.
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.GetTableSchema, connection);
@@ -87,24 +77,24 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                 var reader = await command.ExecuteReaderAsync(CommandBehavior.SchemaOnly);
 
-                _cacheItemIdIndex = reader.GetOrdinal(CacheItemId);
-                _cacheItemValueIndex = reader.GetOrdinal(CacheItemValue);
-                _expiresAtTimeUTCIndex = reader.GetOrdinal(ExpiresAtTimeUTC);
-                _slidingExpirationInTicksIndex = reader.GetOrdinal(SlidingExpirationInTicks);
-                _absoluteExpirationIndex = reader.GetOrdinal(AbsoluteExpiration);
+                if(await reader.ReadAsync())
+                {
+                    //TODO: log
+                }
             }
         }
 
         public byte[] Get([NotNull] string key)
         {
             byte[] cacheItemvalue = null;
-            var utcNow = _systemClock.UtcNow;
+            var utcNow = _options.SystemClock.UtcNow;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.GetCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
-                command.Parameters.AddWithValue("UtcNow", utcNow);
+                command.Parameters
+                    .AddCacheItemId(key)
+                    .AddWithValue("UtcNow", SqlDbType.DateTimeOffset, utcNow);
 
                 connection.Open();
 
@@ -115,18 +105,18 @@ namespace Microsoft.Framework.Caching.SqlServer
                 DateTimeOffset? absoluteExpiration = null;
                 if (reader.Read())
                 {
-                    oldExpirationTime = reader.GetFieldValue<DateTimeOffset>(_expiresAtTimeUTCIndex);
-                    cacheItemvalue = reader.GetFieldValue<byte[]>(_cacheItemValueIndex);
+                    oldExpirationTime = reader.GetFieldValue<DateTimeOffset>(ExpiresAtTimeIndex);
+                    cacheItemvalue = reader.GetFieldValue<byte[]>(CacheItemValueIndex);
 
-                    if (!reader.IsDBNull(_slidingExpirationInTicksIndex))
+                    if (!reader.IsDBNull(SlidingExpirationInTicksIndex))
                     {
                         slidingExpiration = TimeSpan.FromTicks(
-                            reader.GetFieldValue<long>(_slidingExpirationInTicksIndex));
+                            reader.GetFieldValue<long>(SlidingExpirationInTicksIndex));
                     }
 
-                    if (!reader.IsDBNull(_absoluteExpirationIndex))
+                    if (!reader.IsDBNull(AbsoluteExpirationIndex))
                     {
-                        absoluteExpiration = reader.GetFieldValue<DateTimeOffset>(_absoluteExpirationIndex);
+                        absoluteExpiration = reader.GetFieldValue<DateTimeOffset>(AbsoluteExpirationIndex);
                     }
                 }
                 else
@@ -146,15 +136,16 @@ namespace Microsoft.Framework.Caching.SqlServer
                         reader.Dispose();
 
                         command = new SqlCommand(_sqlQueries.UpdateCacheItemExpiration, connection);
-                        command.Parameters.AddWithValue(CacheItemId, key);
-                        command.Parameters.AddWithValue(ExpiresAtTimeUTC, newExpirationTime);
+                        command.Parameters
+                            .AddCacheItemId(key)
+                            .AddExpiresAtTime(newExpirationTime);
 
                         command.ExecuteNonQuery();
                     }
                 }
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
 
             return cacheItemvalue;
         }
@@ -162,13 +153,14 @@ namespace Microsoft.Framework.Caching.SqlServer
         public async Task<byte[]> GetAsync([NotNull] string key)
         {
             byte[] cacheItemvalue = null;
-            var utcNow = _systemClock.UtcNow;
+            var utcNow = _options.SystemClock.UtcNow;
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.GetCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
-                command.Parameters.AddWithValue("UtcNow", utcNow);
+                command.Parameters
+                    .AddCacheItemId(key)
+                    .AddWithValue("UtcNow", SqlDbType.DateTimeOffset, utcNow);
 
                 await connection.OpenAsync();
 
@@ -179,18 +171,18 @@ namespace Microsoft.Framework.Caching.SqlServer
                 DateTimeOffset? absoluteExpiration = null;
                 if (await reader.ReadAsync())
                 {
-                    oldExpirationTime = await reader.GetFieldValueAsync<DateTimeOffset>(_expiresAtTimeUTCIndex);
-                    cacheItemvalue = await reader.GetFieldValueAsync<byte[]>(_cacheItemValueIndex);
+                    oldExpirationTime = await reader.GetFieldValueAsync<DateTimeOffset>(ExpiresAtTimeIndex);
+                    cacheItemvalue = await reader.GetFieldValueAsync<byte[]>(CacheItemValueIndex);
 
-                    if (!await reader.IsDBNullAsync(_slidingExpirationInTicksIndex))
+                    if (!await reader.IsDBNullAsync(SlidingExpirationInTicksIndex))
                     {
                         slidingExpiration = TimeSpan.FromTicks(
-                            await reader.GetFieldValueAsync<long>(_slidingExpirationInTicksIndex));
+                            await reader.GetFieldValueAsync<long>(SlidingExpirationInTicksIndex));
                     }
 
-                    if (!reader.IsDBNull(_absoluteExpirationIndex))
+                    if (!reader.IsDBNull(AbsoluteExpirationIndex))
                     {
-                        absoluteExpiration = await reader.GetFieldValueAsync<DateTimeOffset>(_absoluteExpirationIndex);
+                        absoluteExpiration = await reader.GetFieldValueAsync<DateTimeOffset>(AbsoluteExpirationIndex);
                     }
                 }
                 else
@@ -210,15 +202,16 @@ namespace Microsoft.Framework.Caching.SqlServer
                         reader.Dispose();
 
                         command = new SqlCommand(_sqlQueries.UpdateCacheItemExpiration, connection);
-                        command.Parameters.AddWithValue(CacheItemId, key);
-                        command.Parameters.AddWithValue(ExpiresAtTimeUTC, newExpirationTime);
+                        command.Parameters
+                            .AddCacheItemId(key)
+                            .AddExpiresAtTime(newExpirationTime);
 
                         await command.ExecuteNonQueryAsync();
                     }
                 }
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
 
             return cacheItemvalue;
         }
@@ -238,14 +231,14 @@ namespace Microsoft.Framework.Caching.SqlServer
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.DeleteCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
+                command.Parameters.AddCacheItemId(key);
 
                 connection.Open();
 
                 command.ExecuteNonQuery();
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
         }
 
         public async Task RemoveAsync([NotNull] string key)
@@ -253,28 +246,29 @@ namespace Microsoft.Framework.Caching.SqlServer
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 var command = new SqlCommand(_sqlQueries.DeleteCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
+                command.Parameters.AddCacheItemId(key);
 
                 await connection.OpenAsync();
 
                 await command.ExecuteNonQueryAsync();
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
         }
 
         public void Set([NotNull] string key, [NotNull] byte[] value, [NotNull] DistributedCacheEntryOptions options)
         {
-            var utcNow = _systemClock.UtcNow;
+            var utcNow = _options.SystemClock.UtcNow;
             var expirationInfo = GetExpirationInfo(utcNow, options);
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 // Try updating the cache item and if it does not succeed then its probably a new item
                 var command = new SqlCommand(_sqlQueries.UpdateCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
-                command.Parameters.AddWithValue(CacheItemValue, value);
-                command.Parameters.AddWithValue(ExpiresAtTimeUTC, expirationInfo.ExpiresAtTimeUTC);
+                command.Parameters
+                    .AddCacheItemId(key)
+                    .AddCacheItemValue(value)
+                    .AddExpiresAtTime(expirationInfo.ExpiresAtTime);
 
                 connection.Open();
 
@@ -284,37 +278,18 @@ namespace Microsoft.Framework.Caching.SqlServer
                 if (recordsAffected <= 0)
                 {
                     command = new SqlCommand(_sqlQueries.AddCacheItem, connection);
-                    command.Parameters.AddWithValue(CacheItemId, key);
-                    command.Parameters.AddWithValue(CacheItemValue, value);
-                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, expirationInfo.ExpiresAtTimeUTC);
-
-                    if (expirationInfo.SlidingExpiration.HasValue)
-                    {
-                        command.Parameters.AddWithValue(
-                            SlidingExpirationInTicks,
-                            expirationInfo.SlidingExpiration.Value.Ticks);
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue(SlidingExpirationInTicks, DBNull.Value);
-                    }
-
-                    if (expirationInfo.AbsoluteExpiration.HasValue)
-                    {
-                        command.Parameters.AddWithValue(
-                            AbsoluteExpiration,
-                            expirationInfo.AbsoluteExpiration.Value);
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue(AbsoluteExpiration, DBNull.Value);
-                    }
+                    command.Parameters
+                        .AddCacheItemId(key)
+                        .AddCacheItemValue(value)
+                        .AddExpiresAtTime(expirationInfo.ExpiresAtTime)
+                        .AddSlidingExpirationInTicks(expirationInfo.SlidingExpiration)
+                        .AddAbsoluteExpiration(expirationInfo.AbsoluteExpiration);
 
                     recordsAffected = command.ExecuteNonQuery();
                 }
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
         }
 
         public async Task SetAsync(
@@ -322,16 +297,17 @@ namespace Microsoft.Framework.Caching.SqlServer
             [NotNull] byte[] value,
             [NotNull] DistributedCacheEntryOptions options)
         {
-            var utcNow = _systemClock.UtcNow;
+            var utcNow = _options.SystemClock.UtcNow;
             var expirationInfo = GetExpirationInfo(utcNow, options);
 
             using (var connection = new SqlConnection(_options.ConnectionString))
             {
                 // Try updating the cache item and if it does not succeed then its probably a new item
                 var command = new SqlCommand(_sqlQueries.UpdateCacheItem, connection);
-                command.Parameters.AddWithValue(CacheItemId, key);
-                command.Parameters.AddWithValue(CacheItemValue, value);
-                command.Parameters.AddWithValue(ExpiresAtTimeUTC, expirationInfo.ExpiresAtTimeUTC);
+                command.Parameters
+                    .AddCacheItemId(key)
+                    .AddCacheItemValue(value)
+                    .AddExpiresAtTime(expirationInfo.ExpiresAtTime);
 
                 await connection.OpenAsync();
 
@@ -341,45 +317,26 @@ namespace Microsoft.Framework.Caching.SqlServer
                 if (recordsAffected <= 0)
                 {
                     command = new SqlCommand(_sqlQueries.AddCacheItem, connection);
-                    command.Parameters.AddWithValue(CacheItemId, key);
-                    command.Parameters.AddWithValue(CacheItemValue, value);
-                    command.Parameters.AddWithValue(ExpiresAtTimeUTC, expirationInfo.ExpiresAtTimeUTC);
-
-                    if (expirationInfo.SlidingExpiration.HasValue)
-                    {
-                        command.Parameters.AddWithValue(
-                            SlidingExpirationInTicks,
-                            expirationInfo.SlidingExpiration.Value.Ticks);
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue(SlidingExpirationInTicks, DBNull.Value);
-                    }
-
-                    if (expirationInfo.AbsoluteExpiration.HasValue)
-                    {
-                        command.Parameters.AddWithValue(
-                            AbsoluteExpiration,
-                            expirationInfo.AbsoluteExpiration.Value);
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue(AbsoluteExpiration, DBNull.Value);
-                    }
+                    command.Parameters
+                        .AddCacheItemId(key)
+                        .AddCacheItemValue(value)
+                        .AddExpiresAtTime(expirationInfo.ExpiresAtTime)
+                        .AddSlidingExpirationInTicks(expirationInfo.SlidingExpiration)
+                        .AddAbsoluteExpiration(expirationInfo.AbsoluteExpiration);
 
                     recordsAffected = await command.ExecuteNonQueryAsync();
                 }
             }
 
-            StartScanForExpiredCacheItems();
+            ScanForExpiredItemsIfRequired();
         }
 
         // Called by multiple actions to see how long it's been since we last checked for expired items.
         // If sufficient time has elapsed then a scan is initiated on a background task.
-        private void StartScanForExpiredCacheItems()
+        private void ScanForExpiredItemsIfRequired()
         {
-            var utcNow = _systemClock.UtcNow;
-            if ((utcNow - _lastExpirationScan) > _options.ExpirationScanFrequency)
+            var utcNow = _options.SystemClock.UtcNow;
+            if ((utcNow - _lastExpirationScan) > _options.ExpiredItemsDeletionInterval)
             {
                 _lastExpirationScan = utcNow;
                 ThreadPool.QueueUserWorkItem(DeleteExpiredCacheItems, state: utcNow);
@@ -392,7 +349,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             var utcNow = (DateTimeOffset)state;
             var connection = new SqlConnection(_options.ConnectionString);
             var command = new SqlCommand(_sqlQueries.DeleteExpiredCacheItems, connection);
-            command.Parameters.AddWithValue("UtcNow", utcNow);
+            command.Parameters.AddWithValue("UtcNow", SqlDbType.DateTimeOffset, utcNow);
 
             try
             {
@@ -432,7 +389,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             }
             result.AbsoluteExpiration = absoluteExpiration;
 
-            result.ExpiresAtTimeUTC = GetExpirationTime(result.SlidingExpiration, result.AbsoluteExpiration, utcNow);
+            result.ExpiresAtTime = GetExpirationTime(result.SlidingExpiration, result.AbsoluteExpiration, utcNow);
 
             return result;
         }
@@ -468,7 +425,7 @@ namespace Microsoft.Framework.Caching.SqlServer
         private class ExpirationInfo
         {
             // This should never be null. This value is calculated based on Sliding or Absolute expiration
-            public DateTimeOffset ExpiresAtTimeUTC { get; set; }
+            public DateTimeOffset ExpiresAtTime { get; set; }
 
             public TimeSpan? SlidingExpiration { get; set; }
 

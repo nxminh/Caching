@@ -7,13 +7,14 @@ using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
 using Microsoft.Framework.Caching.SqlServer;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.OptionsModel;
 
 namespace SqlServerCacheSample
 {
     /// <summary>
     /// This sample requires setting up a Microsoft SQL Server based cache database.
     /// 1. Create a new database or use as existing gone.
-    /// 2. Run the command "dnx . create-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
+    /// 2. Run the command "dnx . create-sqlservercache <connectionstring-here> <name-of-tableschema-to-be-created> <name-of-table-to-be-created>"
     ///    to setup the table.
     /// </summary>
     public class Program
@@ -29,11 +30,13 @@ namespace SqlServerCacheSample
 
             Console.WriteLine("Connecting to cache");
             var cache = new SqlServerCache(
+                new OptionsWrapper<SqlServerCacheOptions>(
                 new SqlServerCacheOptions()
                 {
                     ConnectionString = "Server=localhost;Database=CacheSampleDb;Trusted_Connection=True;",
+                    SchemaName = "dbo",
                     TableName = "CacheSample"
-                },
+                }),
                 loggerFactory);
             await cache.ConnectAsync();
 
@@ -78,6 +81,29 @@ namespace SqlServerCacheSample
             }
 
             Console.ReadLine();
+        }
+
+        private class OptionsWrapper<T> : IOptions<T> where T : class, new()
+        {
+            private readonly T _innerOptions;
+
+            public OptionsWrapper(T innerOptions)
+            {
+                _innerOptions = innerOptions;
+            }
+
+            public T Options
+            {
+                get
+                {
+                    return _innerOptions;
+                }
+            }
+
+            public T GetNamedOptions(string name)
+            {
+                return _innerOptions;
+            }
         }
     }
 }

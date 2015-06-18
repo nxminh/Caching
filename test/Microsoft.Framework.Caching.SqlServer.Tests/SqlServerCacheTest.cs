@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
 using Microsoft.Framework.Internal;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.OptionsModel;
 using Xunit;
 
 namespace Microsoft.Framework.Caching.SqlServer
@@ -29,9 +30,11 @@ namespace Microsoft.Framework.Caching.SqlServer
             {
                 ConnectionString = ConnectionString,
                 TableName = TableName,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
 
             // Act
@@ -52,10 +55,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
 
@@ -78,13 +83,15 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                TableName = ConnectionString,
+                ConnectionString = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             await sqlServerCache.SetAsync(
                 key,
@@ -108,13 +115,15 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                TableName = ConnectionString,
+                ConnectionString = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                            new TestSqlServerCacheOptions(options),
+                            new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             await sqlServerCache.SetAsync(
                 key,
@@ -141,10 +150,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                            new TestSqlServerCacheOptions(options),
+                            new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             await sqlServerCache.SetAsync(
                 key,
@@ -173,10 +184,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                            new TestSqlServerCacheOptions(options),
+                            new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
 
@@ -202,10 +215,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
 
@@ -235,10 +250,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
 
@@ -263,10 +280,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
             var absoluteExpiration = testClock.UtcNow.Add(TimeSpan.FromSeconds(10));
@@ -299,10 +318,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
             await sqlServerCache.SetAsync(
@@ -340,10 +361,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
             await sqlServerCache.SetAsync(
@@ -358,7 +381,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             var utcNow = testClock.UtcNow;
             var cacheItemInfo = await GetCacheItemFromDatabaseAsync(key);
             Assert.NotNull(cacheItemInfo);
-            Assert.Equal(utcNow.AddMinutes(10), cacheItemInfo.ExpiresAtTimeUTC);
+            Assert.Equal(utcNow.AddMinutes(10), cacheItemInfo.ExpiresAtTime);
 
             // trigger extension of expiration - succeeds
             utcNow = testClock.Add(TimeSpan.FromMinutes(8)).UtcNow;
@@ -380,16 +403,18 @@ namespace Microsoft.Framework.Caching.SqlServer
             // Arrange
             var testClock = new TestClock();
             var absoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
-            var expectedExpiresAtTimeUTC = testClock.UtcNow.Add(absoluteExpirationRelativeToNow);
+            var expectedExpiresAtTime = testClock.UtcNow.Add(absoluteExpirationRelativeToNow);
             var options = new SqlServerCacheOptions()
             {
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             var expectedValue = Encoding.UTF8.GetBytes("Hello, World!");
             await sqlServerCache.SetAsync(
@@ -408,7 +433,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             // verify if the expiration time in database is set as expected
             var cacheItemInfo = await GetCacheItemFromDatabaseAsync(key);
             Assert.NotNull(cacheItemInfo);
-            Assert.Equal(expectedExpiresAtTimeUTC, cacheItemInfo.ExpiresAtTimeUTC);
+            Assert.Equal(expectedExpiresAtTime, cacheItemInfo.ExpiresAtTime);
         }
 
         [Fact]
@@ -421,10 +446,12 @@ namespace Microsoft.Framework.Caching.SqlServer
                 ConnectionString = ConnectionString,
                 TableName = TableName,
                 SystemClock = testClock,
-                ExpirationScanFrequency = TimeSpan.FromHours(2)
+                ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var key = Guid.NewGuid().ToString();
-            var sqlServerCache = new SqlServerCache(options, new LoggerFactory().AddConsole());
+            var sqlServerCache = new SqlServerCache(
+                new TestSqlServerCacheOptions(options),
+                new LoggerFactory().AddConsole());
             await sqlServerCache.ConnectAsync();
             await sqlServerCache.SetAsync(
                 key,
@@ -450,7 +477,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             Assert.Equal(expectedValue, value);
             var cacheItemInfo = await GetCacheItemFromDatabaseAsync(key);
             Assert.NotNull(cacheItemInfo);
-            Assert.Equal(expectedExpirationTime, cacheItemInfo.ExpiresAtTimeUTC);
+            Assert.Equal(expectedExpirationTime, cacheItemInfo.ExpiresAtTime);
         }
 
         private async Task<CacheItemInfo> GetCacheItemFromDatabaseAsync(string key)
@@ -458,7 +485,7 @@ namespace Microsoft.Framework.Caching.SqlServer
             using (var connection = new SqlConnection(ConnectionString))
             {
                 var command = new SqlCommand(
-                    $"SELECT Id, Value, ExpiresAtTimeUTC, SlidingExpirationInTicks, AbsoluteExpiration " +
+                    $"SELECT Id, Value, ExpiresAtTime, SlidingExpirationInTicks, AbsoluteExpiration " +
                     $"FROM {TableName} WHERE Id = @Id",
                     connection);
                 command.Parameters.AddWithValue("Id", key);
@@ -472,7 +499,7 @@ namespace Microsoft.Framework.Caching.SqlServer
                     var cacheItemInfo = new CacheItemInfo();
                     cacheItemInfo.Id = key;
                     cacheItemInfo.Value = await reader.GetFieldValueAsync<byte[]>(1);
-                    cacheItemInfo.ExpiresAtTimeUTC = await reader.GetFieldValueAsync<DateTimeOffset>(2);
+                    cacheItemInfo.ExpiresAtTime = await reader.GetFieldValueAsync<DateTimeOffset>(2);
 
                     if (!await reader.IsDBNullAsync(3))
                     {
@@ -490,6 +517,29 @@ namespace Microsoft.Framework.Caching.SqlServer
                 {
                     return null;
                 }
+            }
+        }
+
+        private class TestSqlServerCacheOptions : IOptions<SqlServerCacheOptions>
+        {
+            private readonly SqlServerCacheOptions _innerOptions;
+
+            public TestSqlServerCacheOptions(SqlServerCacheOptions innerOptions)
+            {
+                _innerOptions = innerOptions;
+            }
+
+            public SqlServerCacheOptions Options
+            {
+                get
+                {
+                    return _innerOptions;
+                }
+            }
+
+            public SqlServerCacheOptions GetNamedOptions(string name)
+            {
+                return _innerOptions;
             }
         }
     }

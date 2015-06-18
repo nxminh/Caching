@@ -14,7 +14,7 @@ namespace SqlServerCacheConcurencySample
     /// <summary>
     /// This sample requires setting up a Microsoft SQL Server based cache database.
     /// 1. Create a new database or use as existing gone.
-    /// 2. Run the command "dnx . create-sqlservercache <connectionstring-here> <name-of-table-to-be-created>"
+    /// 2. Run the command "dnx . create-sqlservercache <connectionstring-here> <name-of-tableschema-to-be-created> <name-of-table-to-be-created>"
     ///    to setup the table.
     /// </summary>
     public class Program
@@ -33,8 +33,9 @@ namespace SqlServerCacheConcurencySample
             var cache = new SqlServerCache(new SqlServerCacheOptions()
             {
                 ConnectionString = "Server=localhost;Database=CacheConcurencySampleDb;Trusted_Connection=True;",
+                SchemaName = "dbo",
                 TableName = "CacheConcurencySample",
-                ExpirationScanFrequency = TimeSpan.FromSeconds(30)
+                ExpiredItemsDeletionInterval = TimeSpan.FromSeconds(30)
             }, loggerFactory);
             cache.Connect();
 

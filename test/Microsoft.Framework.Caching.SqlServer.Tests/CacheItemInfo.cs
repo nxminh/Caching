@@ -11,7 +11,7 @@ namespace Microsoft.Framework.Caching.SqlServer
 
         public byte[] Value { get; set; }
 
-        public DateTimeOffset ExpiresAtTimeUTC { get; set; }
+        public DateTimeOffset ExpiresAtTime { get; set; }
 
         public long? SlidingExpirationInTicks { get; set; }
 
