@@ -6,8 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
 using Microsoft.Framework.Caching.SqlServer;
+using Microsoft.Framework.Configuration;
 using Microsoft.Framework.Logging;
 using Microsoft.Framework.OptionsModel;
+using Microsoft.Framework.Runtime;
 
 namespace SqlServerCacheSample
 {
@@ -19,7 +21,17 @@ namespace SqlServerCacheSample
     /// </summary>
     public class Program
     {
-        public static async Task Main(string[] args)
+        public Program(IApplicationEnvironment appEnv)
+        {
+            var configurationBuilder = new ConfigurationBuilder(appEnv.ApplicationBasePath);
+            configurationBuilder.AddJsonFile("config.json")
+                        .AddEnvironmentVariables();
+            Configuration = configurationBuilder.Build();
+        }
+
+        public IConfiguration Configuration { get; }
+
+        public void Main()
         {
             var key = Guid.NewGuid().ToString();
             var message = "Hello, World!";
@@ -33,25 +45,25 @@ namespace SqlServerCacheSample
                 new OptionsWrapper<SqlServerCacheOptions>(
                 new SqlServerCacheOptions()
                 {
-                    ConnectionString = "Server=localhost;Database=CacheSampleDb;Trusted_Connection=True;",
-                    SchemaName = "dbo",
-                    TableName = "CacheSample"
+                    ConnectionString = Configuration.Get("Database:ConnectionString"),
+                    SchemaName = Configuration.Get("Database:SchemaName"),
+                    TableName = Configuration.Get("Database:TableName")
                 }),
                 loggerFactory);
-            await cache.ConnectAsync();
+            cache.Connect();
 
             Console.WriteLine("Connected");
 
             Console.WriteLine("Cache item key: {0}", key);
             Console.WriteLine($"Setting value '{message}' in cache");
-            await cache.SetAsync(
+            cache.Set(
                 key,
                 value,
                 new DistributedCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(10)));
             Console.WriteLine("Set");
 
             Console.WriteLine("Getting value from cache");
-            value = await cache.GetAsync(key);
+            value = cache.Get(key);
             if (value != null)
             {
                 Console.WriteLine("Retrieved: " + Encoding.UTF8.GetString(value));
@@ -62,15 +74,15 @@ namespace SqlServerCacheSample
             }
 
             Console.WriteLine("Refreshing value in cache");
-            await cache.RefreshAsync(key);
+            cache.Refresh(key);
             Console.WriteLine("Refreshed");
 
             Console.WriteLine("Removing value from cache");
-            await cache.RemoveAsync(key);
+            cache.Remove(key);
             Console.WriteLine("Removed");
 
             Console.WriteLine("Getting value from cache again");
-            value = await cache.GetAsync(key);
+            value = cache.Get(key);
             if (value != null)
             {
                 Console.WriteLine("Retrieved: " + Encoding.UTF8.GetString(value));
