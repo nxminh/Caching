@@ -4,6 +4,7 @@
 using System;
 using System.Data;
 using System.Data.SqlClient;
+using Microsoft.Framework.Logging;
 
 namespace Microsoft.Framework.Caching.SqlServer
 {
@@ -12,7 +13,15 @@ namespace Microsoft.Framework.Caching.SqlServer
         private string _connectionString;
         private string _tableSchema;
         private string _tableName;
-        private SqlQueries _sqlQueries;
+
+        private readonly ILogger _logger;
+
+        public Program()
+        {
+            var loggerFactory = new LoggerFactory();
+            loggerFactory.AddConsole();
+            _logger = loggerFactory.CreateLogger<Program>();
+        }
 
         public void Main(string[] args)
         {
@@ -20,7 +29,6 @@ namespace Microsoft.Framework.Caching.SqlServer
             _connectionString = args[0];
             _tableSchema = args[1] ?? "dbo";
             _tableName = args[2];
-            _sqlQueries = new SqlQueries(_tableSchema, _tableName);
 
             CreateTableAndIndexes();
         }
@@ -31,18 +39,37 @@ namespace Microsoft.Framework.Caching.SqlServer
             {
                 connection.Open();
 
+                var sqlQueries = new SqlQueries(_tableSchema, _tableName);
+                var command = new SqlCommand(sqlQueries.TableExists, connection);
+                var reader = command.ExecuteReader(CommandBehavior.SingleRow);
+                if (reader.Read())
+                {
+                    _logger.LogWarning(
+                        $"Table with schema '{_tableSchema}' and name '{_tableName}' already exists. " +
+                        "Provide a different table name and try again.");
+                    return;
+                }
+
                 using (var transaction = connection.BeginTransaction())
                 {
-                    var command = new SqlCommand(_sqlQueries.CreateTable, connection, transaction);
-                    command.ExecuteNonQuery();
+                    try
+                    {
+                        command = new SqlCommand(sqlQueries.CreateTable, connection, transaction);
+                        command.ExecuteNonQuery();
 
-                    command = new SqlCommand(
-                        _sqlQueries.CreateNonClusteredIndexOnExpirationTime,
-                        connection,
-                        transaction);
-                    command.ExecuteNonQuery();
+                        command = new SqlCommand(
+                            sqlQueries.CreateNonClusteredIndexOnExpirationTime,
+                            connection,
+                            transaction);
+                        command.ExecuteNonQuery();
 
-                    transaction.Commit();
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError("An error occurred while trying to create the table and index.", ex);
+                        transaction.Rollback();
+                    }
                 }
             }
         }

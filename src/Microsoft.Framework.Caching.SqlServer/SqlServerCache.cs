@@ -60,7 +60,7 @@ namespace Microsoft.Framework.Caching.SqlServer
                 connection.Open();
 
                 var reader = command.ExecuteReader(CommandBehavior.SchemaOnly);
-                if(reader.Read())
+                if (reader.Read())
                 {
                     //TODO: log info
                 }
@@ -77,7 +77,7 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                 var reader = await command.ExecuteReaderAsync(CommandBehavior.SchemaOnly);
 
-                if(await reader.ReadAsync())
+                if (await reader.ReadAsync())
                 {
                     //TODO: log
                 }
@@ -98,15 +98,16 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                 connection.Open();
 
-                var reader = command.ExecuteReader(CommandBehavior.SingleRow);
+                var reader = command.ExecuteReader(CommandBehavior.SequentialAccess);
 
                 DateTimeOffset oldExpirationTime;
                 TimeSpan? slidingExpiration = null;
                 DateTimeOffset? absoluteExpiration = null;
                 if (reader.Read())
                 {
-                    oldExpirationTime = reader.GetFieldValue<DateTimeOffset>(ExpiresAtTimeIndex);
+                    var id = reader.GetFieldValue<string>(CacheItemIdIndex);
                     cacheItemvalue = reader.GetFieldValue<byte[]>(CacheItemValueIndex);
+                    oldExpirationTime = reader.GetFieldValue<DateTimeOffset>(ExpiresAtTimeIndex);
 
                     if (!reader.IsDBNull(SlidingExpirationInTicksIndex))
                     {
@@ -164,15 +165,16 @@ namespace Microsoft.Framework.Caching.SqlServer
 
                 await connection.OpenAsync();
 
-                var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow);
+                var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess);
 
                 DateTimeOffset oldExpirationTime;
                 TimeSpan? slidingExpiration = null;
                 DateTimeOffset? absoluteExpiration = null;
                 if (await reader.ReadAsync())
                 {
-                    oldExpirationTime = await reader.GetFieldValueAsync<DateTimeOffset>(ExpiresAtTimeIndex);
+                    var id = await reader.GetFieldValueAsync<string>(CacheItemIdIndex);
                     cacheItemvalue = await reader.GetFieldValueAsync<byte[]>(CacheItemValueIndex);
+                    oldExpirationTime = await reader.GetFieldValueAsync<DateTimeOffset>(ExpiresAtTimeIndex);
 
                     if (!await reader.IsDBNullAsync(SlidingExpirationInTicksIndex))
                     {

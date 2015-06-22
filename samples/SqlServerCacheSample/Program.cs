@@ -33,6 +33,11 @@ namespace SqlServerCacheSample
 
         public void Main()
         {
+            RunSampleAsync().Wait();
+        }
+
+        public async Task RunSampleAsync()
+        {
             var key = Guid.NewGuid().ToString();
             var message = "Hello, World!";
             var value = Encoding.UTF8.GetBytes(message);
@@ -50,20 +55,20 @@ namespace SqlServerCacheSample
                     TableName = Configuration.Get("TableName")
                 }),
                 loggerFactory);
-            cache.Connect();
+            await cache.ConnectAsync();
 
             Console.WriteLine("Connected");
 
             Console.WriteLine("Cache item key: {0}", key);
             Console.WriteLine($"Setting value '{message}' in cache");
-            cache.Set(
+            await cache.SetAsync(
                 key,
                 value,
                 new DistributedCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromSeconds(10)));
             Console.WriteLine("Set");
 
             Console.WriteLine("Getting value from cache");
-            value = cache.Get(key);
+            value = await cache.GetAsync(key);
             if (value != null)
             {
                 Console.WriteLine("Retrieved: " + Encoding.UTF8.GetString(value));
@@ -74,15 +79,15 @@ namespace SqlServerCacheSample
             }
 
             Console.WriteLine("Refreshing value in cache");
-            cache.Refresh(key);
+            await cache.RefreshAsync(key);
             Console.WriteLine("Refreshed");
 
             Console.WriteLine("Removing value from cache");
-            cache.Remove(key);
+            await cache.RemoveAsync(key);
             Console.WriteLine("Removed");
 
             Console.WriteLine("Getting value from cache again");
-            value = cache.Get(key);
+            value = await cache.GetAsync(key);
             if (value != null)
             {
                 Console.WriteLine("Retrieved: " + Encoding.UTF8.GetString(value));

@@ -6,9 +6,11 @@ using System.Data.SqlClient;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
+using Microsoft.Framework.Configuration;
 using Microsoft.Framework.Internal;
 using Microsoft.Framework.Logging;
 using Microsoft.Framework.OptionsModel;
+using Microsoft.Framework.Runtime;
 using Xunit;
 
 namespace Microsoft.Framework.Caching.SqlServer
@@ -17,10 +19,22 @@ namespace Microsoft.Framework.Caching.SqlServer
     // public
     public class SqlServerCacheTest
     {
-        private const string TableName = "CacheTest";
+        private readonly string _tableName;
+        private readonly string _schemaName;
+        private readonly string _connectionString;
 
-        private readonly string ConnectionString
-            = "Server=.;Database=CacheTestDb;Trusted_Connection=True;";
+        public SqlServerCacheTest(IApplicationEnvironment appEnv)
+        {
+            var configurationBuilder = new ConfigurationBuilder(appEnv.ApplicationBasePath);
+            configurationBuilder
+                .AddJsonFile("config.json")
+                .AddEnvironmentVariables();
+
+            var configuration = configurationBuilder.Build();
+            _tableName = configuration.Get("TableName");
+            _schemaName = configuration.Get("SchemaName");
+            _connectionString = configuration.Get("ConnectionString");
+        }
 
         [Fact]
         public async Task ReturnsNullValue_ForNonExistingCacheItem()
@@ -28,8 +42,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             // Arrange
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
             var sqlServerCache = new SqlServerCache(
@@ -52,8 +67,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var slidingExpiration = TimeSpan.FromSeconds(10);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -83,8 +99,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                TableName = ConnectionString,
-                ConnectionString = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -115,8 +132,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                TableName = ConnectionString,
-                ConnectionString = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -147,8 +165,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -181,8 +200,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var slidingExpiration = TimeSpan.FromSeconds(10);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -212,8 +232,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var absoluteExpirationRelativeToUtcNow = TimeSpan.FromSeconds(10);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -247,8 +268,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var absoluteExpiration = new DateTimeOffset(2025, 1, 1, 1, 0, 0, TimeSpan.Zero);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -277,8 +299,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -315,8 +338,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var slidingExpiration = TimeSpan.FromSeconds(10);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -358,8 +382,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var absoluteExpiration = testClock.UtcNow.Add(TimeSpan.FromMinutes(30));
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -406,8 +431,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var expectedExpiresAtTime = testClock.UtcNow.Add(absoluteExpirationRelativeToNow);
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -443,8 +469,9 @@ namespace Microsoft.Framework.Caching.SqlServer
             var testClock = new TestClock();
             var options = new SqlServerCacheOptions()
             {
-                ConnectionString = ConnectionString,
-                TableName = TableName,
+                ConnectionString = _connectionString,
+                SchemaName = _schemaName,
+                TableName = _tableName,
                 SystemClock = testClock,
                 ExpiredItemsDeletionInterval = TimeSpan.FromHours(2)
             };
@@ -482,11 +509,11 @@ namespace Microsoft.Framework.Caching.SqlServer
 
         private async Task<CacheItemInfo> GetCacheItemFromDatabaseAsync(string key)
         {
-            using (var connection = new SqlConnection(ConnectionString))
+            using (var connection = new SqlConnection(_connectionString))
             {
                 var command = new SqlCommand(
                     $"SELECT Id, Value, ExpiresAtTime, SlidingExpirationInTicks, AbsoluteExpiration " +
-                    $"FROM {TableName} WHERE Id = @Id",
+                    $"FROM {_tableName} WHERE Id = @Id",
                     connection);
                 command.Parameters.AddWithValue("Id", key);
 

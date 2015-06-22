@@ -18,6 +18,12 @@ namespace Microsoft.Framework.Caching.SqlServer
         // Used for getting table schema when trying to 'Connect' to the database
         private const string GetTableSchemaFormat = "SELECT * FROM {0}";
 
+        private const string TableExistsFormat =
+            "SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE " +
+            "FROM INFORMATION_SCHEMA.TABLES " +
+            "WHERE TABLE_SCHEMA = '{0}' " +
+            "AND TABLE_NAME = '{1}'";
+
         private const string GetCacheItemFormat =
             "SELECT Id, Value, ExpiresAtTime, SlidingExpirationInTicks, AbsoluteExpiration " +
             "FROM {0} WHERE Id = @Id AND @UtcNow <= ExpiresAtTime";
@@ -46,6 +52,7 @@ namespace Microsoft.Framework.Caching.SqlServer
                 CreateNonClusteredIndexOnExpirationTimeFormat,
                 tableNameWithSchema);
             GetTableSchema = string.Format(GetTableSchemaFormat, tableNameWithSchema);
+            TableExists = string.Format(TableExistsFormat, schemaName, tableName);
             GetCacheItem = string.Format(GetCacheItemFormat, tableNameWithSchema);
             AddCacheItem = string.Format(AddCacheItemFormat, tableNameWithSchema);
             UpdateCacheItem = string.Format(UpdateCacheItemFormat, tableNameWithSchema);
@@ -59,6 +66,8 @@ namespace Microsoft.Framework.Caching.SqlServer
         public string CreateNonClusteredIndexOnExpirationTime { get; }
 
         public string GetTableSchema { get; }
+
+        public string TableExists { get; }
 
         public string GetCacheItem { get; }
 

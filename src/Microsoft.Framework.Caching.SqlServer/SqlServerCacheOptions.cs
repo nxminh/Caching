@@ -13,7 +13,7 @@ namespace Microsoft.Framework.Caching.SqlServer
 
         public SqlServerCacheOptions()
         {
-            MinimumExpiredItemsDeletionInterval = TimeSpan.FromMinutes(20);
+            MinimumExpiredItemsDeletionInterval = TimeSpan.FromHours(1);
             _expiredItemsDeletionInterval = MinimumExpiredItemsDeletionInterval;
         }
 
