@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
 using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Caching.SqlServer;
+using Microsoft.Framework.Configuration;
 using Microsoft.Framework.Logging;
+using Microsoft.Framework.OptionsModel;
+using Microsoft.Framework.Runtime;
 
 namespace SqlServerCacheConcurencySample
 {
@@ -23,6 +26,16 @@ namespace SqlServerCacheConcurencySample
         private static readonly Random Random = new Random();
         private DistributedCacheEntryOptions _cacheEntryOptions;
 
+        public Program(IApplicationEnvironment appEnv)
+        {
+            var configurationBuilder = new ConfigurationBuilder(appEnv.ApplicationBasePath);
+            configurationBuilder.AddJsonFile("config.json")
+                        .AddEnvironmentVariables();
+            Configuration = configurationBuilder.Build();
+        }
+
+        public IConfiguration Configuration { get; }
+
         public void Main()
         {
             _cacheEntryOptions = new DistributedCacheEntryOptions();
@@ -30,13 +43,15 @@ namespace SqlServerCacheConcurencySample
 
             var loggerFactory = new LoggerFactory();
             loggerFactory.AddConsole();
-            var cache = new SqlServerCache(new SqlServerCacheOptions()
-            {
-                ConnectionString = "Server=localhost;Database=CacheConcurencySampleDb;Trusted_Connection=True;",
-                SchemaName = "dbo",
-                TableName = "CacheConcurencySample",
-                ExpiredItemsDeletionInterval = TimeSpan.FromSeconds(30)
-            }, loggerFactory);
+            var cache = new SqlServerCache(
+                new CacheOptions(
+                new SqlServerCacheOptions()
+                {
+                    ConnectionString = Configuration.Get("ConnectionString"),
+                    SchemaName = Configuration.Get("SchemaName"),
+                    TableName = Configuration.Get("TableName")
+                }),
+                loggerFactory);
             cache.Connect();
 
             SetKey(cache, "0");
@@ -109,6 +124,29 @@ namespace SqlServerCacheConcurencySample
                     cache.Remove(Key);
                 }
             });
+        }
+
+        private class CacheOptions : IOptions<SqlServerCacheOptions>
+        {
+            private readonly SqlServerCacheOptions _innerOptions;
+
+            public CacheOptions(SqlServerCacheOptions innerOptions)
+            {
+                _innerOptions = innerOptions;
+            }
+
+            public SqlServerCacheOptions Options
+            {
+                get
+                {
+                    return _innerOptions;
+                }
+            }
+
+            public SqlServerCacheOptions GetNamedOptions(string name)
+            {
+                return _innerOptions;
+            }
         }
     }
 }

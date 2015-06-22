@@ -42,12 +42,12 @@ namespace SqlServerCacheSample
 
             Console.WriteLine("Connecting to cache");
             var cache = new SqlServerCache(
-                new OptionsWrapper<SqlServerCacheOptions>(
+                new CacheOptions(
                 new SqlServerCacheOptions()
                 {
-                    ConnectionString = Configuration.Get("Database:ConnectionString"),
-                    SchemaName = Configuration.Get("Database:SchemaName"),
-                    TableName = Configuration.Get("Database:TableName")
+                    ConnectionString = Configuration.Get("ConnectionString"),
+                    SchemaName = Configuration.Get("SchemaName"),
+                    TableName = Configuration.Get("TableName")
                 }),
                 loggerFactory);
             cache.Connect();
@@ -95,16 +95,16 @@ namespace SqlServerCacheSample
             Console.ReadLine();
         }
 
-        private class OptionsWrapper<T> : IOptions<T> where T : class, new()
+        private class CacheOptions : IOptions<SqlServerCacheOptions>
         {
-            private readonly T _innerOptions;
+            private readonly SqlServerCacheOptions _innerOptions;
 
-            public OptionsWrapper(T innerOptions)
+            public CacheOptions(SqlServerCacheOptions innerOptions)
             {
                 _innerOptions = innerOptions;
             }
 
-            public T Options
+            public SqlServerCacheOptions Options
             {
                 get
                 {
@@ -112,7 +112,7 @@ namespace SqlServerCacheSample
                 }
             }
 
-            public T GetNamedOptions(string name)
+            public SqlServerCacheOptions GetNamedOptions(string name)
             {
                 return _innerOptions;
             }
