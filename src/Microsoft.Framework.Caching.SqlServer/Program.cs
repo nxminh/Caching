@@ -50,6 +50,7 @@ namespace Microsoft.Framework.Caching.SqlServer
                     return;
                 }
 
+                reader.Dispose();
                 using (var transaction = connection.BeginTransaction())
                 {
                     try
